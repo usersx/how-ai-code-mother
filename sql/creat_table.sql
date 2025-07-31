@@ -1,5 +1,5 @@
 -- 创建库
-create database if not exists yu_ai_code_mother;
+create database if not exists how_ai_code_mother;
 
 -- 切换库
 use how_ai_code_mother;
