@@ -18,6 +18,23 @@ import java.util.List;
 public interface AppService extends IService<App> {
 
     /**
+     * 通过对话生成应用代码
+     * @param appId 应用ID
+     * @param message 提示词
+     * @param loginUser 登录用户
+     * @return
+     */
+    Flux<String> chatToGenCode(Long appId, String message, User loginUser);
+
+    /**
+     * 部署应用
+     * @param appId 应用ID
+     * @param loginUser 登录用户
+     * @return
+     */
+    String deployApp(Long appId,User loginUser);
+
+    /**
      * 获取应用封装类
      * @param app
      * @return
@@ -38,12 +55,4 @@ public interface AppService extends IService<App> {
      */
     List<AppVO> getAppVOList(List<App> appList);
 
-    /**
-     * 通过对话生成应用代码
-     * @param appId 应用ID
-     * @param message 提示词
-     * @param loginUser 登录用户
-     * @return
-     */
-    Flux<String> chatToGenCode(Long appId, String message, User loginUser);
-}
+    }

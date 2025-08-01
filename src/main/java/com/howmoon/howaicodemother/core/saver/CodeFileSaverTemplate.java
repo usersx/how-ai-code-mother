@@ -2,6 +2,7 @@ package com.howmoon.howaicodemother.core.saver;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
+import com.howmoon.howaicodemother.constant.AppConstant;
 import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
 import com.howmoon.howaicodemother.model.enums.CodeGenTypeEnum;
@@ -17,7 +18,9 @@ import java.nio.charset.StandardCharsets;
 public abstract class CodeFileSaverTemplate<T> {
 
     // 文件保存根目录
-    protected static final String FILE_SAVE_ROOT_DIR = System.getProperty("user.dir") + "/tmp/code_output";
+    // 文件保存根目录
+    protected static final String FILE_SAVE_ROOT_DIR = AppConstant.CODE_OUTPUT_ROOT_DIR;
+
 
 
     /**
