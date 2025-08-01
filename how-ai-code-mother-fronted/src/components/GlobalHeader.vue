@@ -1,86 +1,161 @@
 <template>
-  <a-layout-header class="global-header">
-    <div class="left">
-      <img class="logo" src="@/assets/howmoon.png" alt="logo" />
-      <span class="title">Howmoon AI零代码应用生成平台</span>
-      <a-menu
-        mode="horizontal"
-        :selectedKeys="selectedKeys"
-        @click="onMenuClick"
-        style="flex:1"
-      >
-        <a-menu-item v-for="item in menuItems" :key="item.key">
-          <router-link :to="item.path">{{ item.label }}</router-link>
-        </a-menu-item>
-      </a-menu>
-    </div>
-    <div class="right">
-      <a-button type="primary">登录</a-button>
-    </div>
+  <a-layout-header class="header">
+    <a-row :wrap="false">
+      <!-- 左侧：Logo和标题 -->
+      <a-col flex="200px">
+        <RouterLink to="/">
+          <div class="header-left">
+            <img class="logo" src="@/assets/howmoon.png" alt="Logo" />
+            <h1 class="site-title">AI应用生成</h1>
+          </div>
+        </RouterLink>
+      </a-col>
+      <!-- 中间：导航菜单 -->
+      <a-col flex="auto">
+        <a-menu
+          v-model:selectedKeys="selectedKeys"
+          mode="horizontal"
+          :items="menuItems"
+          @click="handleMenuClick"
+        />
+      </a-col>
+      <!-- 右侧：用户操作区域 -->
+      <a-col>
+        <div class="user-login-status">
+          <div v-if="loginUserStore.loginUser.id">
+            <a-dropdown>
+              <a-space>
+                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+                {{ loginUserStore.loginUser.userName ?? '无名' }}
+              </a-space>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="doLogout">
+                    <LogoutOutlined />
+                    退出登录
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </div>
+          <div v-else>
+            <a-button type="primary" href="/user/login">登录</a-button>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
   </a-layout-header>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { computed, h, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import type { MenuProps } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
+import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { LogoutOutlined } from '@ant-design/icons-vue'
+import { userLogout } from '@/api/userController.ts'
 
-const router = useRouter();
-const route = useRoute();
+// 获取登录用户状态
+const loginUserStore = useLoginUserStore()
 
-// 当前高亮菜单项
-const selectedKeys = ref<string[]>([route.path]);
+const router = useRouter()
+// 当前选中菜单
+const selectedKeys = ref<string[]>(['/'])
+// 监听路由变化，更新当前选中菜单
+router.afterEach((to, from, next) => {
+  selectedKeys.value = [to.path]
+})
 
-const menuItems = [
-  { key: '/', label: '首页', path: '/' },
-  { key: '/about', label: '关于', path: '/about' }
-];
+// 菜单配置项
+const originItems = [
+  {
+    key: '/',
+    label: '首页',
+    title: '首页',
+  },
+  {
+    key: '/admin/userManage',
+    label: '用户管理',
+    title: '用户管理',
+  },
+  {
+    key: 'others',
+    label: h(
+      'a',
+      { href: 'https://github.com/usersx/how-ai-code-mother', target: '_blank' },
+      'github 链接',
+    ),
+    title: 'github 链接',
+  },
+]
 
-// 菜单点击事件
-function onMenuClick(e: any) {
-  const key = e.key as string;
-  selectedKeys.value = [key];
+// 过滤菜单项
+const filterMenus = (menus = [] as MenuProps['items']) => {
+  return menus?.filter((menu) => {
+    const menuKey = menu?.key as string
+    if (menuKey?.startsWith('/admin')) {
+      const loginUser = loginUserStore.loginUser
+      if (!loginUser || loginUser.userRole !== 'admin') {
+        return false
+      }
+    }
+    return true
+  })
+}
+
+// 展示在菜单的路由数组
+const menuItems = computed<MenuProps['items']>(() => filterMenus(originItems))
+
+// 处理菜单点击
+const handleMenuClick: MenuProps['onClick'] = (e) => {
+  const key = e.key as string
+  selectedKeys.value = [key]
+  // 跳转到对应页面
   if (key.startsWith('/')) {
-    router.push(key);
+    router.push(key)
   }
 }
 
-// 路由变化时同步高亮
-let removeAfterEach: any;
-onMounted(() => {
-  removeAfterEach = router.afterEach((to) => {
-    selectedKeys.value = [to.path];
-  });
-});
-onUnmounted(() => {
-  if (removeAfterEach) removeAfterEach();
-});
+// 退出登录
+const doLogout = async () => {
+  const res = await userLogout()
+  if (res.data.code === 0) {
+    loginUserStore.setLoginUser({
+      userName: '未登录',
+    })
+    message.success('退出登录成功')
+    await router.push('/user/login')
+  } else {
+    message.error('退出登录失败，' + res.data.msg)
+  }
+}
 </script>
 
 <style scoped>
-.global-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 24px;
+.header {
   background: #fff;
-  box-shadow: 0 2px 8px #f0f1f2;
+  padding: 0 24px;
 }
-.left {
+
+.header-left {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
+
 .logo {
-  width: 40px;
-  height: 40px;
-  margin-right: 12px;
+  height: 48px;
+  width: 48px;
 }
-.title {
-  font-size: 20px;
-  font-weight: bold;
-  margin-right: 32px;
+
+.site-title {
+  margin: 0;
+  font-size: 18px;
+  color: #1890ff;
 }
-.right {
-  display: flex;
-  align-items: center;
+
+.ant-menu-horizontal {
+  border-bottom: none !important;
 }
-</style> 
+</style>
