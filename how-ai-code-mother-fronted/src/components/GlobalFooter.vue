@@ -1,25 +1,37 @@
 <template>
-  <a-layout-footer class="global-footer">
-    <span>
-      by <a href="https://github.com/usersx" target="_blank" rel="noopener">usersx</a>
-    </span>
+  <a-layout-footer class="footer">
+    <div class="footer-content">
+      <p class="copyright">
+        <a
+          href="https://github.com/usersx/how-ai-code-mother"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="author-link"
+        >
+          github项目链接
+        </a>
+      </p>
+    </div>
   </a-layout-footer>
 </template>
 
 <script setup lang="ts">
+// 无需额外的响应式数据
 </script>
 
 <style scoped>
-.global-footer {
+.footer {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
   text-align: center;
-  color: #888;
-  background: #fff;
-  position: fixed;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  padding: 12px 0;
-  box-shadow: 0 -1px 4px #f0f1f2;
-  z-index: 100;
+  padding: 20px;
+  margin-top: 40px;
+  border-top: 1px solid rgba(102, 126, 234, 0.1);
 }
-</style> 
+
+.copyright {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+</style>
