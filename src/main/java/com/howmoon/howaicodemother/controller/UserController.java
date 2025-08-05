@@ -10,18 +10,15 @@ import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
 import com.howmoon.howaicodemother.exception.ThrowUtils;
 import com.howmoon.howaicodemother.model.dto.user.*;
+import com.howmoon.howaicodemother.model.entity.User;
 import com.howmoon.howaicodemother.model.vo.LoginUserVO;
 import com.howmoon.howaicodemother.model.vo.UserVO;
+import com.howmoon.howaicodemother.service.UserService;
 import com.mybatisflex.core.paginate.Page;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import com.howmoon.howaicodemother.model.entity.User;
-import com.howmoon.howaicodemother.service.UserService;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 /**
@@ -42,9 +39,9 @@ public class UserController {
      * @param userRegisterRequest 用户注册请求
      * @return 用户主键
      */
-    @PostMapping("register")
-    public BaseResponse<Long> register(@RequestBody UserRegisterRequest userRegisterRequest) {
-        ThrowUtils.throwIf(userRegisterRequest==null, ErrorCode.PARAMS_ERROR);
+    @PostMapping("/register")
+    public BaseResponse<Long> userRegister(@RequestBody UserRegisterRequest userRegisterRequest) {
+        ThrowUtils.throwIf(userRegisterRequest == null, ErrorCode.PARAMS_ERROR);
         String userAccount = userRegisterRequest.getUserAccount();
         String userPassword = userRegisterRequest.getUserPassword();
         String checkPassword = userRegisterRequest.getCheckPassword();
