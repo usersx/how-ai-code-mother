@@ -13,9 +13,11 @@ import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
 import com.howmoon.howaicodemother.exception.ThrowUtils;
 import com.howmoon.howaicodemother.model.dto.app.*;
+import com.howmoon.howaicodemother.model.entity.App;
 import com.howmoon.howaicodemother.model.entity.User;
 import com.howmoon.howaicodemother.model.enums.CodeGenTypeEnum;
 import com.howmoon.howaicodemother.model.vo.AppVO;
+import com.howmoon.howaicodemother.service.AppService;
 import com.howmoon.howaicodemother.service.UserService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -24,8 +26,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
-import com.howmoon.howaicodemother.model.entity.App;
-import com.howmoon.howaicodemother.service.AppService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -68,8 +68,8 @@ public class AppController {
         app.setUserId(loginUser.getId());
         // 应用名称暂时为 initPrompt 前 12 位
         app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
-        // 暂时设置为多文件生成
-        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
+        // 暂时设置为 VUE 工程生成
+        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
         // 插入数据库
         boolean result = appService.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
