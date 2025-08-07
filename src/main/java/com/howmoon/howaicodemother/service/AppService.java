@@ -1,11 +1,11 @@
 package com.howmoon.howaicodemother.service;
 
 import com.howmoon.howaicodemother.model.dto.app.AppQueryRequest;
+import com.howmoon.howaicodemother.model.entity.App;
 import com.howmoon.howaicodemother.model.entity.User;
 import com.howmoon.howaicodemother.model.vo.AppVO;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
-import com.howmoon.howaicodemother.model.entity.App;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -33,6 +33,8 @@ public interface AppService extends IService<App> {
      * @return
      */
     String deployApp(Long appId,User loginUser);
+
+    void generateAppScreenshotAsync(Long appId, String appUrl);
 
     /**
      * 获取应用封装类
