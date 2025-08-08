@@ -1,5 +1,6 @@
 package com.howmoon.howaicodemother.service;
 
+import com.howmoon.howaicodemother.model.dto.app.AppAddRequest;
 import com.howmoon.howaicodemother.model.dto.app.AppQueryRequest;
 import com.howmoon.howaicodemother.model.entity.App;
 import com.howmoon.howaicodemother.model.entity.User;
@@ -16,6 +17,8 @@ import java.util.List;
  * @author <a href="https://github.com/usersx">howmoon</a>
  */
 public interface AppService extends IService<App> {
+
+    Long createApp(AppAddRequest appAddRequest, User loginUser);
 
     /**
      * 通过对话生成应用代码
