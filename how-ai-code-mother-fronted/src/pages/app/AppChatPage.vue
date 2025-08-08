@@ -12,11 +12,23 @@
           </template>
           应用详情
         </a-button>
+        <a-button
+          :disabled="!isOwner"
+          :loading="downloading"
+          ghost
+          type="primary"
+          @click="downloadCode"
+        >
+          <template #icon>
+            <DownloadOutlined/>
+          </template>
+          下载代码
+        </a-button>
         <a-button type="primary" @click="deployApp" :loading="deploying">
           <template #icon>
             <CloudUploadOutlined />
           </template>
-          部署按钮
+          部署
         </a-button>
       </div>
     </div>
@@ -165,6 +177,7 @@ import {API_BASE_URL, getStaticPreviewUrl} from '@/config/env'
 
 import {
   CloudUploadOutlined,
+  DownloadOutlined,
   ExportOutlined,
   InfoCircleOutlined,
   SendOutlined,
@@ -176,7 +189,7 @@ const loginUserStore = useLoginUserStore()
 
 // 应用信息
 const appInfo = ref<API.AppVO>()
-const appId = ref<any>()
+const appId = ref<string>()
 
 // 对话相关
 interface Message {
@@ -206,6 +219,9 @@ const deploying = ref(false)
 const deployModalVisible = ref(false)
 const deployUrl = ref('')
 
+// 下载相关
+const downloading = ref(false)
+
 // 权限相关
 const isOwner = computed(() => {
   return appInfo.value?.userId === loginUserStore.loginUser.id
@@ -229,7 +245,7 @@ const loadChatHistory = async (isLoadMore = false) => {
   loadingHistory.value = true
   try {
     const params: API.listAppChatHistoryParams = {
-      appId: appId.value,
+      appId: appId.value as unknown as number, // 直接使用字符串，避免大整数精度问题
       pageSize: 10,
     }
     // 如果是加载更多，传递最后一条消息的创建时间作为游标
@@ -289,7 +305,7 @@ const fetchAppInfo = async () => {
   appId.value = id
 
   try {
-    const res = await getAppVoById({ id: id as unknown as number })
+    const res = await getAppVoById({id: id as unknown as number}) // 直接使用字符串，避免大整数精度问题
     if (res.data.code === 0 && res.data.data) {
       appInfo.value = res.data.data
 
@@ -482,6 +498,45 @@ const updatePreview = () => {
 const scrollToBottom = () => {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
+}
+
+// 下载代码
+const downloadCode = async () => {
+  if (!appId.value) {
+    message.error('应用ID不存在')
+    return
+  }
+
+  downloading.value = true
+  try {
+    const API_BASE_URL = request.defaults.baseURL || ''
+    const url = `${API_BASE_URL}/app/download/${appId.value}`
+    const response = await fetch(url, {
+      method: 'GET',
+      credentials: 'include',
+    })
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status}`)
+    }
+    // 获取文件名
+    const contentDisposition = response.headers.get('Content-Disposition')
+    const fileName = contentDisposition?.match(/filename="(.+)"/)?.[1] || `app-${appId.value}.zip`
+    // 下载文件
+    const blob = await response.blob()
+    const downloadUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = fileName
+    link.click()
+    // 清理
+    URL.revokeObjectURL(downloadUrl)
+    message.success('代码下载成功')
+  } catch (error) {
+    console.error('下载失败：', error)
+    message.error('下载失败，请重试')
+  } finally {
+    downloading.value = false
   }
 }
 

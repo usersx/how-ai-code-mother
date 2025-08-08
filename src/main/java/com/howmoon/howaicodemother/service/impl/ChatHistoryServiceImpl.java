@@ -70,15 +70,30 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
     public Page<ChatHistory> listAppChatHistoryByPage(Long appId, int pageSize,
                                                       LocalDateTime lastCreateTime,
                                                       User loginUser) {
+        log.info("开始查询应用对话历史，appId: {}, pageSize: {}, lastCreateTime: {}, loginUser: {}",
+                appId, pageSize, lastCreateTime, loginUser != null ? loginUser.getId() : "null");
+        
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID不能为空");
         ThrowUtils.throwIf(pageSize <= 0 || pageSize > 50, ErrorCode.PARAMS_ERROR, "页面大小必须在1-50之间");
         ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
+
         // 验证权限：只有应用创建者和管理员可以查看
+        log.info("开始查询应用信息，appId: {}", appId);
         App app = appService.getById(appId);
-        ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        log.info("查询应用结果，app: {}", app != null ? "存在" : "不存在");
+
+        if (app == null) {
+            log.error("应用不存在，appId: {}", appId);
+            ThrowUtils.throwIf(true, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        }
+        
         boolean isAdmin = UserConstant.ADMIN_ROLE.equals(loginUser.getUserRole());
         boolean isCreator = app.getUserId().equals(loginUser.getId());
+        log.info("权限检查，isAdmin: {}, isCreator: {}, appUserId: {}, loginUserId: {}",
+                isAdmin, isCreator, app.getUserId(), loginUser.getId());
+        
         ThrowUtils.throwIf(!isAdmin && !isCreator, ErrorCode.NO_AUTH_ERROR, "无权查看该应用的对话历史");
+
         // 构建查询条件
         ChatHistoryQueryRequest queryRequest = new ChatHistoryQueryRequest();
         queryRequest.setAppId(appId);

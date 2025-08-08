@@ -67,6 +67,21 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private ScreenshotService screenshotService;
 
+    /**
+     * 重写 getById 方法，添加调试日志
+     */
+    @Override
+    public App getById(Serializable id) {
+        log.info("AppServiceImpl.getById 被调用，id: {}", id);
+        App app = super.getById(id);
+        log.info("AppServiceImpl.getById 查询结果，app: {}", app != null ? "存在" : "不存在");
+        if (app != null) {
+            log.info("AppServiceImpl.getById 应用详情，id: {}, appName: {}, userId: {}, isDelete: {}",
+                    app.getId(), app.getAppName(), app.getUserId(), app.getIsDelete());
+        }
+        return app;
+    }
+
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
         // 1. 参数校验
