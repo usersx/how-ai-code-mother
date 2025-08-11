@@ -74,8 +74,8 @@
         <a-alert
           v-if="selectedElementInfo"
           class="selected-element-alert"
-          closable
           type="info"
+          closable
           @close="clearSelectedElement"
         >
           <template #message>
@@ -154,9 +154,9 @@
               v-if="isOwner && previewUrl"
               :class="{ 'edit-mode-active': isEditMode }"
               :danger="isEditMode"
-              style="padding: 0; height: auto; margin-right: 12px"
               type="link"
               @click="toggleEditMode"
+              style="padding: 0; height: auto; margin-right: 12px"
             >
               <template #icon>
                 <EditOutlined/>
