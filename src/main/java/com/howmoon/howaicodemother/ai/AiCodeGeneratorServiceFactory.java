@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.howmoon.howaicodemother.ai.tools.ToolManager;
 import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
+import com.howmoon.howaicodemother.guardrail.PromptSafetyInputGuardrail;
 import com.howmoon.howaicodemother.model.enums.CodeGenTypeEnum;
 import com.howmoon.howaicodemother.service.ChatHistoryService;
 import com.howmoon.howaicodemother.utils.SpringContextUtil;
@@ -110,7 +111,7 @@ public class AiCodeGeneratorServiceFactory {
                         .hallucinatedToolNameStrategy(toolExecutionRequest ->
                                 ToolExecutionResultMessage.from(toolExecutionRequest,
                                         "Error: there is no tool called " + toolExecutionRequest.name())
-                        )
+                        ).inputGuardrails(new PromptSafetyInputGuardrail())
                         .build();
             }
             // HTML 和 多文件生成，使用流式对话模型
@@ -121,6 +122,7 @@ public class AiCodeGeneratorServiceFactory {
                         .chatModel(chatModel)
                         .streamingChatModel(openAiStreamingChatModel)
                         .chatMemory(chatMemory)
+                        .inputGuardrails(new PromptSafetyInputGuardrail())
                         .build();
             }
             default ->
