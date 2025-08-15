@@ -1,4 +1,4 @@
-package com.howmoon.howaicodemother.guardrail;
+package com.howmoon.howaicodemother.ai.guardrail;
 
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.guardrail.InputGuardrail;

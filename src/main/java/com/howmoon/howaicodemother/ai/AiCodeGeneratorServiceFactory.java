@@ -2,10 +2,10 @@ package com.howmoon.howaicodemother.ai;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.howmoon.howaicodemother.ai.guardrail.PromptSafetyInputGuardrail;
 import com.howmoon.howaicodemother.ai.tools.ToolManager;
 import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
-import com.howmoon.howaicodemother.guardrail.PromptSafetyInputGuardrail;
 import com.howmoon.howaicodemother.model.enums.CodeGenTypeEnum;
 import com.howmoon.howaicodemother.service.ChatHistoryService;
 import com.howmoon.howaicodemother.utils.SpringContextUtil;
@@ -111,7 +111,10 @@ public class AiCodeGeneratorServiceFactory {
                         .hallucinatedToolNameStrategy(toolExecutionRequest ->
                                 ToolExecutionResultMessage.from(toolExecutionRequest,
                                         "Error: there is no tool called " + toolExecutionRequest.name())
-                        ).inputGuardrails(new PromptSafetyInputGuardrail())
+                        )
+                        .maxSequentialToolsInvocations(20)  // 最多连续调用 20 次工具
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
+//                        .outputGuardrails(new RetryOutputGuardrail()) // 添加输出护轨，为了流式输出，这里不使用
                         .build();
             }
             // HTML 和 多文件生成，使用流式对话模型
@@ -123,6 +126,7 @@ public class AiCodeGeneratorServiceFactory {
                         .streamingChatModel(openAiStreamingChatModel)
                         .chatMemory(chatMemory)
                         .inputGuardrails(new PromptSafetyInputGuardrail())
+                        //.outputGuardrails(new RetryOutputGuardrail()) // 添加输出护轨，为了流式输出，这里不使用
                         .build();
             }
             default ->
