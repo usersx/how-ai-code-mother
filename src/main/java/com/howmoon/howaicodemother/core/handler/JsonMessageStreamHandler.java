@@ -6,8 +6,6 @@ import cn.hutool.json.JSONUtil;
 import com.howmoon.howaicodemother.ai.model.message.*;
 import com.howmoon.howaicodemother.ai.tools.BaseTool;
 import com.howmoon.howaicodemother.ai.tools.ToolManager;
-import com.howmoon.howaicodemother.constant.AppConstant;
-import com.howmoon.howaicodemother.core.builder.VueProjectBuilder;
 import com.howmoon.howaicodemother.model.entity.User;
 import com.howmoon.howaicodemother.model.enums.ChatHistoryMessageTypeEnum;
 import com.howmoon.howaicodemother.service.ChatHistoryService;
@@ -19,7 +17,6 @@ import reactor.core.publisher.Flux;
 import java.util.HashSet;
 import java.util.Set;
 
-
 /**
  * JSON 消息流处理器
  * 处理 VUE_PROJECT 类型的复杂流式响应，包含工具调用信息
@@ -27,9 +24,6 @@ import java.util.Set;
 @Slf4j
 @Component
 public class JsonMessageStreamHandler {
-
-    @Resource
-    private VueProjectBuilder vueProjectBuilder;
 
     @Resource
     private ToolManager toolManager;
@@ -61,9 +55,6 @@ public class JsonMessageStreamHandler {
                     // 流式响应完成后，添加 AI 消息到对话历史
                     String aiResponse = chatHistoryStringBuilder.toString();
                     chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId());
-                    // 异步构造 Vue 项目
-                    String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
-                    vueProjectBuilder.buildProjectAsync(projectPath);
                 })
                 .doOnError(error -> {
                     // 如果AI回复失败，也要记录错误消息
