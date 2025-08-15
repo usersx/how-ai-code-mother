@@ -16,16 +16,23 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class AiCodeGenTypeRoutingServiceFactory {
 
-    @Resource
-    private ChatModel chatModel;
+    @Resource(name = "routingChatModelPrototype")
+    private ChatModel routingChatModel;
 
     /**
      * 创建AI代码生成类型路由服务实例
      */
+    public AiCodeGenTypeRoutingService createAiCodeGenTypeRoutingService() {
+        return AiServices.builder(AiCodeGenTypeRoutingService.class)
+                .chatModel(routingChatModel)
+                .build();
+    }
+
+    /**
+     * 默认提供一个 Bean
+     */
     @Bean
     public AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService() {
-        return AiServices.builder(AiCodeGenTypeRoutingService.class)
-                .chatModel(chatModel)
-                .build();
+        return createAiCodeGenTypeRoutingService();
     }
 }

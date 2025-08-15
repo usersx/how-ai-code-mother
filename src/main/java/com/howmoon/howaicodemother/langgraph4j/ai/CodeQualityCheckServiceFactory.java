@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Configuration;
  */
 public class CodeQualityCheckServiceFactory {
     // Spring资源注入注解，用于自动注入依赖
-    @Resource // 聊天模型，用于AI对话功能
+    @Resource(name = "openAiChatModel")
     private ChatModel chatModel;
 
     /**
