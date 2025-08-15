@@ -16,6 +16,8 @@ import com.howmoon.howaicodemother.model.dto.app.*;
 import com.howmoon.howaicodemother.model.entity.App;
 import com.howmoon.howaicodemother.model.entity.User;
 import com.howmoon.howaicodemother.model.vo.AppVO;
+import com.howmoon.howaicodemother.ratelimter.annotation.RateLimit;
+import com.howmoon.howaicodemother.ratelimter.enums.RateLimitType;
 import com.howmoon.howaicodemother.service.AppService;
 import com.howmoon.howaicodemother.service.ProjectDownloadService;
 import com.howmoon.howaicodemother.service.UserService;
@@ -291,6 +293,7 @@ public class AppController {
      * @return 生成结果流
      */
     @GetMapping(value = "/chat/gen/code", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @RateLimit(limitType = RateLimitType.USER, rate = 5, rateInterval = 60, message = "AI 对话请求过于频繁，请稍后再试")
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message,
                                                        HttpServletRequest request) {
