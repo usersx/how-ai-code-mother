@@ -9,6 +9,7 @@ import com.howmoon.howaicodemother.constant.UserConstant;
 import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
 import com.howmoon.howaicodemother.exception.ThrowUtils;
+import com.howmoon.howaicodemother.manager.CosManager;
 import com.howmoon.howaicodemother.model.dto.user.*;
 import com.howmoon.howaicodemother.model.entity.User;
 import com.howmoon.howaicodemother.model.vo.LoginUserVO;
@@ -18,6 +19,8 @@ import com.mybatisflex.core.paginate.Page;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -32,6 +35,9 @@ public class UserController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private CosManager cosManager;
 
     /**
      * 用户注册。
@@ -157,6 +163,52 @@ public class UserController {
         boolean result = userService.updateById(user);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
+    }
+
+    /**
+     * 用户自助更新个人信息（仅当前登录用户）
+     */
+    @PostMapping("/update/my")
+    public BaseResponse<Boolean> updateMy(@RequestBody UserUpdateRequest userUpdateRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(userUpdateRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        // 仅允许更新昵称、头像、简介
+        User updateUser = new User();
+        updateUser.setId(loginUser.getId());
+        updateUser.setUserName(userUpdateRequest.getUserName());
+        updateUser.setUserAvatar(userUpdateRequest.getUserAvatar());
+        updateUser.setUserProfile(userUpdateRequest.getUserProfile());
+        boolean result = userService.updateById(updateUser);
+        if (result) {
+            // 同步会话中的用户信息，确保刷新前端能拿到最新头像
+            User refreshed = userService.getById(loginUser.getId());
+            request.getSession().setAttribute(com.howmoon.howaicodemother.constant.UserConstant.USER_LOGIN_STATE, refreshed);
+        }
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+
+    /**
+     * 上传头像，返回可访问的 URL
+     */
+    @PostMapping(value = "/upload/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BaseResponse<String> uploadAvatar(@RequestPart("file") MultipartFile file, HttpServletRequest request) {
+        ThrowUtils.throwIf(file == null || file.isEmpty(), ErrorCode.PARAMS_ERROR, "文件不能为空");
+        User loginUser = userService.getLoginUser(request);
+        try {
+            String original = file.getOriginalFilename();
+            String ext = original != null && original.contains(".") ? original.substring(original.lastIndexOf('.')) : "";
+            java.io.File temp = java.io.File.createTempFile("avatar_", ext);
+            file.transferTo(temp);
+            String keyName = String.format("avatar/%d/%d%s", loginUser.getId(), System.currentTimeMillis(), ext);
+            String url = cosManager.uploadFile(keyName, temp);
+            // 删除临时文件
+            // noinspection ResultOfMethodCallIgnored
+            temp.delete();
+            return ResultUtils.success(url);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "头像上传失败: " + e.getMessage());
+        }
     }
 
     /**

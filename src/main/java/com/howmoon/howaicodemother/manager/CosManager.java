@@ -48,8 +48,13 @@ public class CosManager {
         // 上传文件
         PutObjectResult result = putObject(key, file);
         if (result != null) {
-            // 构建访问URL
-            String url = String.format("%s%s", cosClientConfig.getHost(), key);
+            // 构建访问URL，确保分隔符正确
+            String host = cosClientConfig.getHost();
+            if (host == null) host = "";
+            if (!host.endsWith("/")) {
+                host = host + "/";
+            }
+            String url = host + key;
             log.info("文件上传COS成功: {} -> {}", file.getName(), url);
             return url;
         } else {

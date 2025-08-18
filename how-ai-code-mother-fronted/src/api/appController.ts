@@ -116,10 +116,10 @@ export async function downloadAppCode(
   params: API.downloadAppCodeParams,
   options?: { [key: string]: any }
 ) {
-  const {appId: param0, ...queryParams} = params
+  const { appId: param0, ...queryParams } = params
   return request<any>(`/app/download/${param0}`, {
     method: 'GET',
-    params: {...queryParams},
+    params: { ...queryParams },
     ...(options || {}),
   })
 }

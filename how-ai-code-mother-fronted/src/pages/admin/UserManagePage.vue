@@ -24,6 +24,12 @@
         <template v-if="column.dataIndex === 'userAvatar'">
           <a-image :src="record.userAvatar" :width="120" />
         </template>
+        <template v-else-if="column.dataIndex === 'userName'">
+          <a-input v-model:value="record.userName" @blur="saveInline(record)" />
+        </template>
+        <template v-else-if="column.dataIndex === 'userProfile'">
+          <a-input v-model:value="record.userProfile" @blur="saveInline(record)" />
+        </template>
         <template v-else-if="column.dataIndex === 'userRole'">
           <div v-if="record.userRole === 'admin'">
             <a-tag color="green">管理员</a-tag>
@@ -36,7 +42,10 @@
           {{ dayjs(record.createTime).format('YYYY-MM-DD HH:mm:ss') }}
         </template>
         <template v-else-if="column.key === 'action'">
-          <a-button danger @click="doDelete(record.id)">删除</a-button>
+          <a-space>
+            <a-button type="primary" @click="saveInline(record)">保存</a-button>
+            <a-button danger @click="doDelete(record.id)">删除</a-button>
+          </a-space>
         </template>
       </template>
     </a-table>
@@ -44,7 +53,7 @@
 </template>
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { deleteUser, listUserVoByPage } from '@/api/userController.ts'
+import { deleteUser, listUserVoByPage, updateUser } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 
@@ -132,17 +141,33 @@ const doSearch = () => {
 }
 
 // 删除数据
-const doDelete = async (id: string) => {
+const doDelete = async (id: string | number) => {
   if (!id) {
     return
   }
-  const res = await deleteUser({ id })
+  const res = await deleteUser({ id: Number(id) })
   if (res.data.code === 0) {
     message.success('删除成功')
     // 刷新数据
     fetchData()
   } else {
     message.error('删除失败')
+  }
+}
+
+// 行内保存
+const saveInline = async (record: API.UserVO) => {
+  if (!record.id) return
+  const res = await updateUser({
+    id: record.id,
+    userName: record.userName,
+    userProfile: record.userProfile,
+  })
+  if (res.data.code === 0) {
+    message.success('已保存')
+    fetchData()
+  } else {
+    message.error(res.data.message || '保存失败')
   }
 }
 

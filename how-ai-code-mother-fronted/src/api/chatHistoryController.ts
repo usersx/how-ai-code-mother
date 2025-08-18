@@ -23,7 +23,7 @@ export async function listAppChatHistory(
   params: API.listAppChatHistoryParams,
   options?: { [key: string]: any }
 ) {
-  const {appId: param0, ...queryParams} = params
+  const { appId: param0, ...queryParams } = params
   return request<API.BaseResponsePageChatHistory>(`/chatHistory/app/${param0}`, {
     method: 'GET',
     params: {

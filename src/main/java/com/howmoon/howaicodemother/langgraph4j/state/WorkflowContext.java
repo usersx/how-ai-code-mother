@@ -30,6 +30,12 @@ public class WorkflowContext implements Serializable {
     public static final String WORKFLOW_CONTEXT_KEY = "workflowContext";
     @Serial
     private static final long serialVersionUID = 1L;
+
+    /**
+     * 应用 ID
+     */
+    @Builder.Default
+    private Long appId = 0L;
     /**
      * 当前执行步骤
      */

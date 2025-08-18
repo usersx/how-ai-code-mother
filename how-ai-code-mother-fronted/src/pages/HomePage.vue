@@ -29,6 +29,8 @@ const featuredAppsPage = reactive({
   pageSize: 6,
   total: 0,
 })
+const featuredAppsLoading = ref(false)
+const myAppsLoading = ref(false)
 
 // 设置提示词
 const setPrompt = (prompt: string) => {
@@ -78,6 +80,7 @@ const loadMyApps = async () => {
     return
   }
 
+  myAppsLoading.value = true
   try {
     const res = await listMyAppVoByPage({
       pageNum: myAppsPage.current,
@@ -92,11 +95,14 @@ const loadMyApps = async () => {
     }
   } catch (error) {
     console.error('加载我的应用失败：', error)
+  } finally {
+    myAppsLoading.value = false
   }
 }
 
 // 加载精选应用
 const loadFeaturedApps = async () => {
+  featuredAppsLoading.value = true
   try {
     const res = await listGoodAppVoByPage({
       pageNum: featuredAppsPage.current,
@@ -111,6 +117,8 @@ const loadFeaturedApps = async () => {
     }
   } catch (error) {
     console.error('加载精选应用失败：', error)
+  } finally {
+    featuredAppsLoading.value = false
   }
 }
 
@@ -249,7 +257,15 @@ onMounted(() => {
 
       <!-- 精选案例 -->
       <div class="section">
-        <h2 class="section-title">精选案例</h2>
+        <div class="section-header">
+          <h2 class="section-title">精选案例</h2>
+          <a-button type="link" @click="loadFeaturedApps" :loading="featuredAppsLoading">
+            <template #icon>
+              <span>🔄</span>
+            </template>
+            刷新
+          </a-button>
+        </div>
         <div class="featured-grid">
           <AppCard
             v-for="app in featuredApps"
@@ -524,10 +540,17 @@ onMounted(() => {
   margin-bottom: 60px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
 .section-title {
   font-size: 32px;
   font-weight: 600;
-  margin-bottom: 32px;
+  margin: 0;
   color: #1e293b;
 }
 

@@ -484,10 +484,11 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     // 获取 axios 配置的 baseURL
     const baseURL = request.defaults.baseURL || API_BASE_URL
 
-    // 构建URL参数
+    // 构建URL参数（开启 agent 模式）
     const params = new URLSearchParams({
       appId: appId.value || '',
       message: userMessage,
+      agent: 'true',
     })
 
     const url = `${baseURL}/app/chat/gen/code?${params}`

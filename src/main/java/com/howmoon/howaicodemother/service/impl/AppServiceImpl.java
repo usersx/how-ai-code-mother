@@ -15,6 +15,7 @@ import com.howmoon.howaicodemother.exception.BusinessException;
 import com.howmoon.howaicodemother.exception.ErrorCode;
 import com.howmoon.howaicodemother.exception.ThrowUtils;
 import com.howmoon.howaicodemother.mapper.AppMapper;
+import com.howmoon.howaicodemother.langgraph4j.CodeGenWorkflow;
 import com.howmoon.howaicodemother.model.dto.app.AppAddRequest;
 import com.howmoon.howaicodemother.model.dto.app.AppQueryRequest;
 import com.howmoon.howaicodemother.model.entity.App;
@@ -122,6 +123,11 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
+        return chatToGenCode(appId, message, loginUser, false);
+    }
+
+    @Override
+    public Flux<String> chatToGenCode(Long appId, String message, User loginUser, boolean agent) {
         // 1. 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 错误");
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "提示词不能为空");
@@ -140,8 +146,15 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         // 5. 通过校验后，添加用户消息到对话历史
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), loginUser.getId());
-        // 6. 调用 AI 生成代码（流式）
-        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        // 6. 根据 agent 参数选择生成方式
+        Flux<String> codeStream;
+        if (agent) {
+            // Agent 模式：使用工作流生成代码
+            codeStream = new CodeGenWorkflow().executeWorkflowWithFlux(message, appId);
+        } else {
+            // 传统模式：调用 AI 生成代码（流式）
+            codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        }
         // 7. 收集 AI 响应内容并在完成后记录到对话历史
         return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
 
