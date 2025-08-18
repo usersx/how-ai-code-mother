@@ -663,6 +663,15 @@ const deployApp = async () => {
       deployUrl.value = res.data.data
       deployModalVisible.value = true
       message.success('部署成功')
+
+      // 部署成功后，延迟刷新应用信息以获取最新的封面
+      setTimeout(async () => {
+        await fetchAppInfo()
+        // 通知其他页面刷新应用列表
+        window.dispatchEvent(new CustomEvent('app-deployed', {
+          detail: { appId: appId.value as number }
+        }))
+      }, 2000) // 延迟2秒，等待截图生成完成
     } else {
       message.error('部署失败：' + res.data.message)
     }

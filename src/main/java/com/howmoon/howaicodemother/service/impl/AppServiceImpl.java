@@ -31,6 +31,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -76,7 +77,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 
-
+    @Resource
+    private CacheManager cacheManager;
 
 
     /**
@@ -216,15 +218,55 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     public void generateAppScreenshotAsync(Long appId, String appUrl) {
         // 使用虚拟线程并执行
         Thread.startVirtualThread(() -> {
-            // 调用截图服务生成截图并上传
-            String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
-            // 更新数据库的封面
-            App updateApp = new App();
-            updateApp.setId(appId);
-            updateApp.setCover(screenshotUrl);
-            boolean updated = this.updateById(updateApp);
-            ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
+            try {
+                // 调用截图服务生成截图并上传
+                String screenshotUrl = screenshotService.generateAndUploadScreenshot(appUrl);
+                if (StrUtil.isNotBlank(screenshotUrl)) {
+                    // 更新数据库的封面
+                    App updateApp = new App();
+                    updateApp.setId(appId);
+                    updateApp.setCover(screenshotUrl);
+                    boolean updated = this.updateById(updateApp);
+                    if (updated) {
+                        log.info("应用封面更新成功，appId: {}, cover: {}", appId, screenshotUrl);
+                        // 清除相关缓存
+                        clearAppCache();
+                    } else {
+                        log.error("更新应用封面字段失败，appId: {}", appId);
+                    }
+                } else {
+                    log.error("截图生成失败，appId: {}, appUrl: {}", appId, appUrl);
+                }
+            } catch (Exception e) {
+                log.error("异步生成应用截图失败，appId: {}, appUrl: {}", appId, appUrl, e);
+            }
         });
+    }
+
+    /**
+     * 清除应用相关缓存
+     */
+    private void clearAppCache() {
+        try {
+            // 清除应用列表相关缓存
+            if (cacheManager != null) {
+                // 清除我的应用列表缓存
+                var myAppCache = cacheManager.getCache("my_app_page");
+                if (myAppCache != null) {
+                    myAppCache.clear();
+                    log.info("已清除我的应用列表缓存");
+                }
+                
+                // 清除精选应用列表缓存
+                var goodAppCache = cacheManager.getCache("good_app_page");
+                if (goodAppCache != null) {
+                    goodAppCache.clear();
+                    log.info("已清除精选应用列表缓存");
+                }
+            }
+        } catch (Exception e) {
+            log.error("清除应用缓存失败", e);
+        }
     }
 
     @Override
