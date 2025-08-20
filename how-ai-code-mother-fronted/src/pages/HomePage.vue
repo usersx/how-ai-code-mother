@@ -270,12 +270,6 @@ onMounted(() => {
       <div class="section">
         <div class="section-header">
           <h2 class="section-title">精选案例</h2>
-          <a-button type="link" @click="loadFeaturedApps" :loading="featuredAppsLoading">
-            <template #icon>
-              <span>🔄</span>
-            </template>
-            刷新
-          </a-button>
         </div>
         <div class="featured-grid">
           <AppCard
@@ -309,10 +303,14 @@ onMounted(() => {
   padding: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 8%, #e2e8f0 20%, #cbd5e1 100%),
-    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+    /* 绿-蓝-紫 渐变 + 柔和光斑（仅调整背景，其他结构不变） */
+    radial-gradient(1200px 600px at 15% 10%, rgba(14, 191, 132, 0.28), transparent 60%),
+    radial-gradient(1000px 500px at 85% 12%, rgba(59, 130, 246, 0.28), transparent 60%),
+    radial-gradient(1000px 500px at 50% 85%, rgba(139, 92, 246, 0.22), transparent 62%),
+    /* 基底柔和层（OKLCH） */
+    linear-gradient(180deg, oklch(98% 0.02 230) 0%, oklch(96% 0.03 280) 100%),
+    /* 主色层（OKLCH：绿→蓝→紫，过渡更顺滑） */
+    linear-gradient(135deg, oklch(85% 0.18 150) 0%, oklch(80% 0.20 230) 50%, oklch(82% 0.18 300) 100%);
   position: relative;
   overflow: hidden;
 }
