@@ -75,8 +75,15 @@ public class AiCodeGeneratorServiceFactory {
      * @return
      */
     public AiCodeGeneratorService getAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenType) {
-        String cacheKey = buildCacheKey(appId, codeGenType);
-        return serviceCache.get(cacheKey, key -> createAiCodeGeneratorService(appId, codeGenType));
+        return getAiCodeGeneratorService(appId, codeGenType, false);
+    }
+
+    /**
+     * 根据 appId 获取服务（可选择是否绕过输入护轨）
+     */
+    public AiCodeGeneratorService getAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenType, boolean bypassGuardrails) {
+        String cacheKey = buildCacheKey(appId, codeGenType) + (bypassGuardrails ? "_no_guard" : "");
+        return serviceCache.get(cacheKey, key -> createAiCodeGeneratorService(appId, codeGenType, bypassGuardrails));
     }
 
     /**
@@ -86,7 +93,7 @@ public class AiCodeGeneratorServiceFactory {
      * @param codeGenType 生成类型
      * @return
      */
-    private AiCodeGeneratorService createAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenType) {
+    private AiCodeGeneratorService createAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenType, boolean bypassGuardrails) {
         log.info("为 appId: {} 创建新的 AI 服务实例", appId);
         // 根据 appId 构建独立的对话记忆
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory
@@ -102,7 +109,7 @@ public class AiCodeGeneratorServiceFactory {
             case VUE_PROJECT -> {
                 // 使用多例模式的 StreamingChatModel 解决并发问题
                 StreamingChatModel reasoningStreamingChatModel = SpringContextUtil.getBean("reasoningStreamingChatModelPrototype", StreamingChatModel.class);
-                yield AiServices.builder(AiCodeGeneratorService.class)
+                var builder = AiServices.builder(AiCodeGeneratorService.class)
                         .chatModel(chatModel)
                         .streamingChatModel(reasoningStreamingChatModel)
                         .chatMemoryProvider(memoryId -> chatMemory)
@@ -113,21 +120,27 @@ public class AiCodeGeneratorServiceFactory {
                                         "Error: there is no tool called " + toolExecutionRequest.name())
                         )
                         .maxSequentialToolsInvocations(20)  // 最多连续调用 20 次工具
-                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入护轨
-//                        .outputGuardrails(new RetryOutputGuardrail()) // 添加输出护轨，为了流式输出，这里不使用
-                        .build();
+                        ;
+                if (!bypassGuardrails) {
+                    builder.inputGuardrails(new PromptSafetyInputGuardrail());
+                }
+                // .outputGuardrails(new RetryOutputGuardrail()) // 为了流式输出，这里不使用
+                yield builder.build();
             }
             // HTML 和 多文件生成，使用流式对话模型
             case HTML, MULTI_FILE -> {
                 // 使用多例模式的 StreamingChatModel 解决并发问题
                 StreamingChatModel openAiStreamingChatModel = SpringContextUtil.getBean("streamingChatModelPrototype", StreamingChatModel.class);
-                yield AiServices.builder(AiCodeGeneratorService.class)
+                var builder = AiServices.builder(AiCodeGeneratorService.class)
                         .chatModel(chatModel)
                         .streamingChatModel(openAiStreamingChatModel)
                         .chatMemory(chatMemory)
-                        .inputGuardrails(new PromptSafetyInputGuardrail())
-                        //.outputGuardrails(new RetryOutputGuardrail()) // 添加输出护轨，为了流式输出，这里不使用
-                        .build();
+                        ;
+                if (!bypassGuardrails) {
+                    builder.inputGuardrails(new PromptSafetyInputGuardrail());
+                }
+                // .outputGuardrails(new RetryOutputGuardrail())
+                yield builder.build();
             }
             default ->
                     throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型: " + codeGenType.getValue());

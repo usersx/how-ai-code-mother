@@ -67,10 +67,11 @@ public class JsonMessageStreamHandler {
      * 解析并收集 TokenStream 数据
      */
     private String handleJsonMessageChunk(String chunk, StringBuilder chatHistoryStringBuilder, Set<String> seenToolIds) {
-        // 解析 JSON
-        StreamMessage streamMessage = JSONUtil.toBean(chunk, StreamMessage.class);
-        StreamMessageTypeEnum typeEnum = StreamMessageTypeEnum.getEnumByValue(streamMessage.getType());
-        switch (typeEnum) {
+        try {
+            // 解析 JSON
+            StreamMessage streamMessage = JSONUtil.toBean(chunk, StreamMessage.class);
+            StreamMessageTypeEnum typeEnum = StreamMessageTypeEnum.getEnumByValue(streamMessage.getType());
+            switch (typeEnum) {
             case AI_RESPONSE -> {
                 AiResponseMessage aiMessage = JSONUtil.toBean(chunk, AiResponseMessage.class);
                 String data = aiMessage.getData();
@@ -111,6 +112,12 @@ public class JsonMessageStreamHandler {
                 log.error("不支持的消息类型: {}", typeEnum);
                 return "";
             }
+            }
+        } catch (Exception parseError) {
+            // 容错：如果分片不是 JSON（例如模型直接吐出了普通文本），则按普通文本透传，继续保持流畅输出
+            log.warn("JSON 消息解析失败，按纯文本处理: {}", parseError.getMessage());
+            chatHistoryStringBuilder.append(chunk);
+            return chunk;
         }
     }
 }

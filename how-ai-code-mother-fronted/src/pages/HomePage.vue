@@ -156,10 +156,21 @@ onMounted(() => {
   }
 
   document.addEventListener('mousemove', handleMouseMove)
+  // 监听跨页事件：部署完成、应用删除等，实时刷新列表
+  window.addEventListener('app-deployed', () => {
+    loadMyApps()
+    loadFeaturedApps()
+  })
+  window.addEventListener('app-deleted', () => {
+    loadMyApps()
+    loadFeaturedApps()
+  })
 
   // 清理事件监听器
   return () => {
     document.removeEventListener('mousemove', handleMouseMove)
+    window.removeEventListener('app-deployed', () => {})
+    window.removeEventListener('app-deleted', () => {})
   }
 })
 </script>

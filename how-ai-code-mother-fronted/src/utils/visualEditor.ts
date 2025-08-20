@@ -293,7 +293,10 @@ export class VisualEditor {
         // 清除选中效果
         function clearSelectedEffect() {
           const selected = document.querySelectorAll('.edit-selected');
-          selected.forEach(el => el.classList.remove('edit-selected'));
+          selected.forEach(el => {
+            el.classList.remove('edit-selected');
+            try { el.removeAttribute('contenteditable'); } catch {}
+          });
           currentSelectedElement = null;
         }
 
@@ -338,6 +341,7 @@ export class VisualEditor {
              clearHoverEffect();
 
              target.classList.add('edit-selected');
+             try { target.setAttribute('contenteditable', 'true'); } catch {}
              currentSelectedElement = target;
 
              const elementInfo = getElementInfo(target);

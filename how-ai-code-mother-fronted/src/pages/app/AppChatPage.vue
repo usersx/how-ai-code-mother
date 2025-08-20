@@ -40,6 +40,21 @@
     <div class="main-content">
       <!-- 左侧对话区域 -->
       <div class="chat-section">
+        <!-- 工作流进度（Agent 模式） -->
+        <div v-if="workflow.visible" class="workflow-panel">
+          <div class="workflow-header">
+            <span class="workflow-title">工作流进度</span>
+            <span class="workflow-status" v-if="workflow.completed">已完成</span>
+          </div>
+          <a-steps direction="vertical" :current="Math.max(workflow.current - 1, 0)">
+            <a-step
+              v-for="s in workflow.steps"
+              :key="s.number"
+              :title="s.title"
+              :status="s.status"
+            />
+          </a-steps>
+        </div>
         <!-- 消息区域 -->
         <div class="messages-container" ref="messagesContainer">
           <!-- 加载更多按钮 -->
@@ -171,6 +186,17 @@
             </a-button>
           </div>
         </div>
+        <!-- 代码文件 Tabs 展示 -->
+        <div class="code-tabs" v-if="codeFiles.length">
+          <a-tabs v-model:activeKey="activeCodeTab">
+            <a-tab-pane v-for="file in codeFiles" :key="file.filename" :tab="file.filename">
+              <div class="code-tab-toolbar">
+                <a-button size="small" @click="copyCode(file.content)">复制</a-button>
+              </div>
+              <pre class="hljs code-pre"><code v-html="highlightCode(file.content, file.language)"></code></pre>
+            </a-tab-pane>
+          </a-tabs>
+        </div>
         <div class="preview-content">
           <div v-if="!previewUrl && !isGenerating" class="preview-placeholder">
             <div class="placeholder-icon">🌐</div>
@@ -229,6 +255,8 @@ import DeploySuccessModal from '@/components/DeploySuccessModal.vue'
 import aiAvatar from '@/assets/aiAvatar.png'
 import {API_BASE_URL, getStaticPreviewUrl} from '@/config/env'
 import {type ElementInfo, VisualEditor} from '@/utils/visualEditor'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css'
 
 import {
   CloudUploadOutlined,
@@ -245,6 +273,7 @@ const loginUserStore = useLoginUserStore()
 
 // 应用信息
 const appInfo = ref<API.AppVO>()
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const appId = ref<any>()
 
 // 对话相关
@@ -269,6 +298,29 @@ const historyLoaded = ref(false)
 // 预览相关
 const previewUrl = ref('')
 const previewReady = ref(false)
+
+// 代码文件 Tabs 数据
+interface CodeFile {
+  filename: string
+  language: string
+  content: string
+}
+const codeFiles = ref<CodeFile[]>([])
+const activeCodeTab = ref<string>('')
+// 工具输出缓冲区（处理流式分片的代码块）
+const toolOutputBuffer = ref('')
+// 工作流事件缓冲（SSE 可能分片，需等到“\n\n”完整块再解析）
+const workflowBuffer = ref('')
+
+// 工作流渲染状态
+type StepStatus = 'wait' | 'process' | 'finish' | 'error'
+interface WorkflowStep { number: number; title: string; status: StepStatus }
+const workflow = ref({
+  visible: false,
+  current: 0,
+  steps: [] as WorkflowStep[],
+  completed: false,
+})
 
 // 部署相关
 const deploying = ref(false)
@@ -493,6 +545,11 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
 
     const url = `${baseURL}/app/chat/gen/code?${params}`
 
+    // 新一轮生成前，重置代码 Tabs 与缓冲区
+    codeFiles.value = []
+    activeCodeTab.value = ''
+    toolOutputBuffer.value = ''
+
     // 创建 EventSource 连接
     eventSource = new EventSource(url, {
       withCredentials: true,
@@ -507,14 +564,25 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
       try {
         // 解析JSON包装的数据
         const parsed = JSON.parse(event.data)
-        const content = parsed.d
+        const content: string = parsed.d
 
         // 拼接内容
         if (content !== undefined && content !== null) {
-          fullContent += content
-          messages.value[aiMessageIndex].content = fullContent
-          messages.value[aiMessageIndex].loading = false
-          scrollToBottom()
+          // 将原始分片先放入工作流缓冲，提取并移除所有完整的 workflow 事件块
+          workflowBuffer.value += content
+          const cleaned = extractWorkflowFromBuffer()
+          if (cleaned) {
+            fullContent += cleaned
+            // 仅将“非工作流事件”的内容用于代码块解析
+            toolOutputBuffer.value += cleaned
+            extractToolCodeBlocksFromBuffer()
+            messages.value[aiMessageIndex].content = fullContent
+            messages.value[aiMessageIndex].loading = false
+            scrollToBottom()
+          } else {
+            // 仅收到工作流事件时，保持 loading 态，避免出现“空白但不转圈”的错觉
+            messages.value[aiMessageIndex].loading = true
+          }
         }
       } catch (error) {
         console.error('解析消息失败:', error)
@@ -580,6 +648,167 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
   } catch (error) {
     console.error('创建 EventSource 失败：', error)
     handleError(error, aiMessageIndex)
+  }
+}
+// 从缓冲区提取完整的 workflow 事件块（event: xxx + data: {...}\n\n），并返回剩余的“非事件”文本
+const extractWorkflowFromBuffer = (): string => {
+  let output = ''
+  let s = workflowBuffer.value
+  while (true) {
+    const eventPos = s.indexOf('event:')
+    if (eventPos === -1) {
+      // 没有事件起始，全部属于普通文本
+      output += s
+      s = ''
+      break
+    }
+    // 先输出 event 前的普通文本
+    if (eventPos > 0) {
+      output += s.slice(0, eventPos)
+      s = s.slice(eventPos)
+    }
+    // 查找事件块结束（按 \n\n 分隔）
+    const endPos = s.indexOf('\n\n')
+    if (endPos === -1) {
+      // 事件块不完整，保留在缓冲中等待下个分片
+      break
+    }
+    const block = s.slice(0, endPos + 2)
+    s = s.slice(endPos + 2)
+    // 解析事件名与 data JSON
+    try {
+      const lines = block.split('\n')
+      const eventLine = lines.find(l => l.startsWith('event:')) || ''
+      const dataLine = lines.find(l => l.startsWith('data:')) || ''
+      const eventName = eventLine.replace('event:', '').trim()
+      const jsonText = dataLine.replace('data:', '').trim().replace(/[“”]/g, '"')
+      const payload = JSON.parse(jsonText)
+      handleWorkflowEvent(eventName, payload)
+    } catch {
+      // 解析失败，作为普通文本回退
+      output += block
+    }
+  }
+  workflowBuffer.value = s
+  return output
+}
+
+interface WorkflowPayload { currentStep?: string; step?: string; stepNumber?: number; number?: number; message?: string }
+const handleWorkflowEvent = (eventName: string, payload: WorkflowPayload) => {
+  if (!workflow.value.visible && (eventName === 'workflow_start' || eventName === 'step_completed')) {
+    workflow.value.visible = true
+  }
+  if (eventName === 'workflow_start') {
+    workflow.value.current = 0
+    workflow.value.steps = []
+    workflow.value.completed = false
+    return
+  }
+  if (eventName === 'step_completed') {
+    const title = payload?.currentStep || payload?.step || '步骤'
+    const num = Number(payload?.stepNumber || payload?.number || workflow.value.steps.length + 1)
+    const idx = workflow.value.steps.findIndex(s => s.number === num)
+    if (idx === -1) {
+      workflow.value.steps.push({ number: num, title, status: 'finish' })
+    } else {
+      workflow.value.steps[idx].title = title
+      workflow.value.steps[idx].status = 'finish'
+    }
+    workflow.value.current = Math.max(workflow.value.current, num)
+    // 将之前步骤设为完成、之后为等待
+    workflow.value.steps = workflow.value.steps
+      .sort((a, b) => a.number - b.number)
+      .map(s => ({ ...s, status: s.number <= workflow.value.current ? 'finish' as StepStatus : s.status || 'wait' }))
+    return
+  }
+  if (eventName === 'workflow_completed') {
+    workflow.value.completed = true
+    // 所有步骤标记完成
+    workflow.value.steps = workflow.value.steps.map(s => ({ ...s, status: 'finish' }))
+    return
+  }
+  if (eventName === 'workflow_error') {
+    const num = Number(payload?.stepNumber || workflow.value.current)
+    const idx = workflow.value.steps.findIndex(s => s.number === num)
+    if (idx !== -1) workflow.value.steps[idx].status = 'error'
+  }
+}
+// 从缓冲区提取“工具调用”的代码块，填充到 codeFiles Tabs
+const extractToolCodeBlocksFromBuffer = () => {
+  // 形如：
+  // [工具调用] 写入文件 path/to/file.js\n```js\n...code...\n```
+  // 注意：流式分片可能不完整，这里仅在完整出现成对 ``` 时才提取
+  let changed = false
+  while (true) {
+    const startIdx = toolOutputBuffer.value.indexOf('[工具调用]')
+    if (startIdx === -1) break
+    const fenceStart = toolOutputBuffer.value.indexOf('```', startIdx)
+    if (fenceStart === -1) break
+    const fenceEnd = toolOutputBuffer.value.indexOf('```', fenceStart + 3)
+    if (fenceEnd === -1) break
+
+    const block = toolOutputBuffer.value.substring(startIdx, fenceEnd + 3)
+    // 解析文件名、语言、内容
+    // 标题行可能为：[工具调用] 写入文件 相对路径
+    const headerLineEnd = block.indexOf('\n')
+    const header = headerLineEnd !== -1 ? block.substring(0, headerLineEnd) : block
+    const filenameMatch = header.match(/\[工具调用\][^\n]*\s+([^`\s]+)$/)
+
+    const langLineStart = block.indexOf('```') + 3
+    const langLineEnd = block.indexOf('\n', langLineStart)
+    const language = langLineEnd !== -1 ? block.substring(langLineStart, langLineEnd).trim() : ''
+    const codeStart = langLineEnd + 1
+    const codeEnd = block.lastIndexOf('```')
+    const code = codeStart > 0 && codeEnd > codeStart ? block.substring(codeStart, codeEnd) : ''
+
+    if (filenameMatch && code) {
+      const filename = filenameMatch[1]
+      upsertCodeFile({ filename, language, content: code })
+      changed = true
+    }
+
+    // 从缓冲中移除已处理的块，避免重复解析
+    toolOutputBuffer.value = toolOutputBuffer.value.slice(0, startIdx) + toolOutputBuffer.value.slice(fenceEnd + 3)
+  }
+  if (changed && !activeCodeTab.value && codeFiles.value.length) {
+    activeCodeTab.value = codeFiles.value[0].filename
+  }
+}
+
+const upsertCodeFile = (file: CodeFile) => {
+  const idx = codeFiles.value.findIndex(f => f.filename === file.filename)
+  if (idx >= 0) {
+    codeFiles.value[idx] = file
+  } else {
+    codeFiles.value.push(file)
+  }
+}
+
+const escapeHtml = (code: string) =>
+  code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const highlightCode = (code: string, language: string) => {
+  try {
+    if (language) {
+      return hljs.highlight(code, { language, ignoreIllegals: true }).value
+    }
+    return hljs.highlightAuto(code).value
+  } catch {
+    return escapeHtml(code)
+  }
+}
+
+const copyCode = async (code: string) => {
+  try {
+    await navigator.clipboard.writeText(code)
+    message.success('已复制到剪贴板')
+  } catch {
+    message.error('复制失败')
   }
 }
 
@@ -724,6 +953,8 @@ const deleteApp = async () => {
     if (res.data.code === 0) {
       message.success('删除成功')
       appDetailVisible.value = false
+      // 通知首页刷新“我的作品”
+      window.dispatchEvent(new CustomEvent('app-deleted'))
       router.push('/')
     } else {
       message.error('删除失败：' + res.data.message)
@@ -838,6 +1069,19 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.workflow-panel {
+  padding: 12px 16px 0 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.workflow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.workflow-title { font-weight: 600; color: #1a1a1a; }
+.workflow-status { color: #52c41a; font-size: 12px; }
+
 .messages-container {
   flex: 0.9;
   padding: 16px;
@@ -929,6 +1173,26 @@ onUnmounted(() => {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+}
+
+.code-tabs {
+  padding: 0 16px 8px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.code-tab-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.code-pre {
+  background: #f8f8f8;
+  border: 1px solid #e1e1e1;
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 280px;
+  overflow: auto;
 }
 
 .preview-header {

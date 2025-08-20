@@ -75,12 +75,14 @@ public class GlobalExceptionHandler {
                 );
                 String errorJson = JSONUtil.toJsonStr(errorData);
                 // 发送业务错误事件（避免与标准error事件冲突）
-                String sseData = "event: business-error\ndata: " + errorJson + "\n\n";
-                response.getWriter().write(sseData);
-                response.getWriter().flush();
-                // 发送结束事件
-                response.getWriter().write("event: done\ndata: {}\n\n");
-                response.getWriter().flush();
+                byte[] part1 = ("event: business-error\n" + "data: " + errorJson + "\n\n").getBytes();
+                byte[] part2 = "event: done\n".concat("data: {}\n\n").getBytes();
+                if (!response.isCommitted()) {
+                    response.getOutputStream().write(part1);
+                    response.getOutputStream().flush();
+                    response.getOutputStream().write(part2);
+                    response.getOutputStream().flush();
+                }
                 // 表示已处理SSE请求
                 return true;
             } catch (IOException ioException) {
