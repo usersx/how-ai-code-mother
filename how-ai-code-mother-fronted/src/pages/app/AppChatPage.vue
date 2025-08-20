@@ -9,6 +9,10 @@
         </a-tag>
       </div>
       <div class="header-right">
+        <div class="mode-toggle">
+          <span>工作流</span>
+          <a-switch v-model:checked="useAgent" size="small" />
+        </div>
         <a-button type="default" @click="showAppDetail">
           <template #icon>
             <InfoCircleOutlined />
@@ -232,6 +236,24 @@
       :deploy-url="deployUrl"
       @open-site="openDeployedSite"
     />
+
+    <!-- 生成前模式选择弹窗 -->
+    <a-modal
+      v-model:open="modeModalVisible"
+      title="选择生成方式"
+      :maskClosable="false"
+      :keyboard="false"
+      @ok="confirmMode"
+      @cancel="cancelMode"
+    >
+      <a-radio-group v-model:value="modeSelection">
+        <a-radio :value="true">使用工作流（推荐）</a-radio>
+        <a-radio :value="false">直接生成</a-radio>
+      </a-radio-group>
+      <div style="margin-top: 12px">
+        <a-checkbox v-model:checked="rememberMode">记住我的选择</a-checkbox>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -311,6 +333,47 @@ const activeCodeTab = ref<string>('')
 const toolOutputBuffer = ref('')
 // 工作流事件缓冲（SSE 可能分片，需等到“\n\n”完整块再解析）
 const workflowBuffer = ref('')
+
+// 生成模式：是否使用工作流（Agent）
+const useAgent = ref(true)
+
+// 生成前询问弹窗状态
+const modeModalVisible = ref(false)
+const modeSelection = ref<boolean>(true)
+const rememberMode = ref<boolean>(false)
+let modePromiseResolve: ((ok: boolean) => void) | null = null
+
+const ensureModeSelection = async (): Promise<boolean> => {
+  // 已记住的模式则直接使用
+  const stored = localStorage.getItem('useAgentMode')
+  if (stored === 'true' || stored === 'false') {
+    useAgent.value = stored === 'true'
+    return true
+  }
+  // 未记住则弹窗询问
+  modeSelection.value = true
+  rememberMode.value = false
+  modeModalVisible.value = true
+  return new Promise<boolean>((resolve) => {
+    modePromiseResolve = resolve
+  })
+}
+
+const confirmMode = () => {
+  useAgent.value = modeSelection.value
+  if (rememberMode.value) {
+    localStorage.setItem('useAgentMode', String(useAgent.value))
+  }
+  modeModalVisible.value = false
+  modePromiseResolve?.(true)
+  modePromiseResolve = null
+}
+
+const cancelMode = () => {
+  modeModalVisible.value = false
+  modePromiseResolve?.(false)
+  modePromiseResolve = null
+}
 
 // 工作流渲染状态
 type StepStatus = 'wait' | 'process' | 'finish' | 'error'
@@ -455,6 +518,9 @@ const fetchAppInfo = async () => {
 
 // 发送初始消息
 const sendInitialMessage = async (prompt: string) => {
+  const ok = await ensureModeSelection()
+  if (!ok) return
+
   // 添加用户消息
   messages.value.push({
     type: 'user',
@@ -483,7 +549,11 @@ const sendMessage = async () => {
     return
   }
 
-  let message = userInput.value.trim()
+  // 先确认生成模式
+  const ok = await ensureModeSelection()
+  if (!ok) return
+
+  let messageText = userInput.value.trim()
   // 如果有选中的元素，将元素信息添加到提示词中
   if (selectedElementInfo.value) {
     let elementContext = `\n\n选中元素信息：`
@@ -494,13 +564,13 @@ const sendMessage = async () => {
     if (selectedElementInfo.value.textContent) {
       elementContext += `\n- 当前内容: ${selectedElementInfo.value.textContent.substring(0, 100)}`
     }
-    message += elementContext
+    messageText += elementContext
   }
   userInput.value = ''
   // 添加用户消息（包含元素信息）
   messages.value.push({
     type: 'user',
-    content: message,
+    content: messageText,
   })
 
   // 发送消息后，清除选中元素并退出编辑模式
@@ -524,7 +594,7 @@ const sendMessage = async () => {
 
   // 开始生成
   isGenerating.value = true
-  await generateCode(message, aiMessageIndex)
+  await generateCode(messageText, aiMessageIndex)
 }
 
 // 生成代码 - 使用 EventSource 处理流式响应
@@ -536,11 +606,17 @@ const generateCode = async (userMessage: string, aiMessageIndex: number) => {
     // 获取 axios 配置的 baseURL
     const baseURL = request.defaults.baseURL || API_BASE_URL
 
-    // 构建URL参数（开启 agent 模式）
+    // 每次开始生成前重置工作流面板
+    workflow.value.visible = false
+    workflow.value.current = 0
+    workflow.value.steps = []
+    workflow.value.completed = false
+
+    // 构建URL参数（根据开关决定是否开启 agent 模式）
     const params = new URLSearchParams({
       appId: appId.value || '',
       message: userMessage,
-      agent: 'true',
+      agent: useAgent.value ? 'true' : 'false',
     })
 
     const url = `${baseURL}/app/chat/gen/code?${params}`
