@@ -10,8 +10,34 @@
 
 ## 🌟 项目简介
 
-How AI Code Mother 是一个创新的 AI 驱动的零代码应用生成平台。用户只需通过自然语言描述需求，AI
-就能自动生成完整的网站应用，包括前端界面、交互逻辑和部署配置。
+How AI Code Mother 是一个创新的 AI 驱动的零代码应用生成平台。用户只需通过自然语言描述需求，AI 就能自动生成完整的网站应用，包括前端界面、交互逻辑和部署配置。
+
+![主页预览](how-ai-code-mother-fronted/public/主页.png)
+### ✨ 亮点速览
+
+- 对话即开发：一句话发起生成，边流式输出边预览
+- 工作流编排：初始化 → 图片收集 → 提示词增强 → 智能路由 → 代码生成 → 质检 → 构建/部署
+- Agent 工具流：自动写文件
+- 可视化编辑：在预览页开启编辑模式，选中元素即可 `contentEditable` 就地修改
+- 一键部署：生成后直接打包 + 上传，获取可访问链接
+
+
+### 🧭 工作流一览
+
+1. 初始化：接收原始需求与上下文
+2. 图片收集：并发搜索/生成站内素材（内容图、插画、图标/Logo 等）
+3. 提示词增强：将图片/约束合并进更强的 Prompt
+4. 智能路由：按需求自动选择生成类型（HTML/多文件/Vue 项目）
+5. 代码生成：流式输出代码；在 Vue 项目模式下通过工具写入至项目结构
+6. 代码质量检查：静态校验/规则检查，不通过则回流修复
+7. 构建/部署：Vue 项目自动打包并推送，可直接在线访问
+
+### 🧪 三步上手
+
+1. 首页输入一句描述并创建应用
+2. 进入聊天页，和 AI 继续描述你想要的样式/模块
+3. 右侧实时预览成品；需要时点击“部署”立即上线
+
 
 ### 核心特性
 
@@ -241,31 +267,64 @@ npm run dev
 
 ```
 how-ai-code-mother/
-├── src/                          # 后端源码
-│   ├── main/java/
-│   │   └── com/howmoon/howaicodemother/
-│   │       ├── ai/               # AI 相关服务
-│   │       ├── controller/       # 控制器层
-│   │       ├── service/          # 服务层
-│   │       ├── mapper/           # 数据访问层
-│   │       ├── model/            # 数据模型
-│   │       ├── core/             # 核心业务逻辑
-│   │       └── utils/            # 工具类
-│   └── resources/
-│       ├── application.yml       # 配置文件
-│       ├── mapper/               # MyBatis 映射文件
-│       └── prompt/               # AI 提示词模板
-├── how-ai-code-mother-fronted/   # 前端项目
+├── how-ai-code-mother-fronted/         # 前端（Vue 3 + Vite + TS）
+│   ├── public/                         # 静态资源（如：主页.png）
 │   ├── src/
-│   │   ├── api/                  # API 接口
-│   │   ├── components/           # 公共组件
-│   │   ├── pages/                # 页面组件
-│   │   ├── stores/               # 状态管理
-│   │   └── utils/                # 工具函数
+│   │   ├── api/                        # 后端 OpenAPI 封装
+│   │   ├── assets/                     # 图片等静态资源
+│   │   ├── components/                 # 通用组件（MarkdownRenderer、AppCard 等）
+│   │   ├── pages/                      # 页面
+│   │   │   ├── app/                    # 应用聊天/编辑等
+│   │   │   ├── admin/                  # 管理端页面
+│   │   │   └── user/                   # 用户登录/注册/资料
+│   │   ├── router/                     # 路由
+│   │   ├── stores/                     # Pinia 状态
+│   │   ├── utils/                      # 工具（可视化编辑器等）
+│   │   └── config/                     # 环境配置
+│   ├── vite.config.ts
 │   └── package.json
-├── sql/                          # 数据库脚本
+│
+├── src/                                # 后端（Spring Boot）
+│   ├── main/
+│   │   ├── java/com/howmoon/howaicodemother/
+│   │   │   ├── HowAiCodeMotherApplication.java
+│   │   │   ├── ai/                     # AI 接入与模型装配
+│   │   │   │   ├── tools/              # Agent 工具（读/写文件等）
+│   │   │   │   ├── model/              # AI 结构化返回模型
+│   │   │   │   └── guardrail/          # 输入/输出护轨
+│   │   │   ├── controller/             # 控制器（App/User/Workflow 等）
+│   │   │   ├── core/                   # 代码解析/保存/构建 等核心流程
+│   │   │   │   ├── handler/            # 流式处理器（SSE/TokenStream）
+│   │   │   │   ├── parser/             # 代码解析器
+│   │   │   │   ├── saver/              # 代码保存策略
+│   │   │   │   └── builder/            # 项目构建（Vue 项目打包）
+│   │   │   ├── langgraph4j/            # 工作流（节点/工具/状态）
+│   │   │   │   ├── node/               # 工作流节点（收集/增强/生成/质检/构建）
+│   │   │   │   ├── tools/              # 工作流专用工具
+│   │   │   │   ├── model/              # 工作流模型/结果
+│   │   │   │   ├── ai/                 # 工作流使用的 AI Service 封装
+│   │   │   │   └── state/              # 工作流上下文
+│   │   │   ├── service/                # 业务服务与实现
+│   │   │   ├── manager/                # 资源管理（COS 等）
+│   │   │   ├── mapper/                 # MyBatis 映射
+│   │   │   ├── model/                  # DTO/Entity/VO/Enum
+│   │   │   ├── exception/              # 全局异常
+│   │   │   ├── config/                 # Spring 配置
+│   │   │   └── utils/                  # 工具类
+│   │   └── resources/
+│   │       ├── application.yml         # 配置文件
+│   │       ├── mapper/                 # XML 映射文件
+│   │       ├── prompt/                 # 系统 Prompt 模板
+│   │       └── static/                 # 静态页面（调试用）
+│   └── test/java/…                     # 单元/集成测试
+│
+├── sql/                                # 数据库脚本
+│   └── creat_table.sql
+├── pom.xml
 └── README.md
 ```
+
+> 说明：前端与后端位于同一仓库，便于一键拉起与联调。工作流相关代码集中在 `langgraph4j` 包，Agent 工具与护轨位于 `ai/tools` 与 `ai/guardrail`。
 
 ## 🔧 开发指南
 
