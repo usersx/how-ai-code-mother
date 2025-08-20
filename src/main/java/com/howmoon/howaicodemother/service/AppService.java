@@ -21,6 +21,11 @@ public interface AppService extends IService<App> {
     Long createApp(AppAddRequest appAddRequest, User loginUser);
 
     /**
+     * 根据描述生成推荐的应用名称
+     */
+    String generateAppNameByPrompt(String userPrompt);
+
+    /**
      * 通过对话生成应用代码
      * @param appId 应用ID
      * @param message 提示词

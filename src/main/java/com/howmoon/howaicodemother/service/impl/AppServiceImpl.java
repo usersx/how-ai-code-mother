@@ -5,6 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.howmoon.howaicodemother.ai.AiAppNameGeneratorService;
 import com.howmoon.howaicodemother.ai.AiCodeGenTypeRoutingService;
 import com.howmoon.howaicodemother.ai.AiCodeGenTypeRoutingServiceFactory;
 import com.howmoon.howaicodemother.constant.AppConstant;
@@ -107,8 +108,18 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         App app = new App();
         BeanUtil.copyProperties(appAddRequest, app);
         app.setUserId(loginUser.getId());
-        // 应用名称暂时为 initPrompt 前 12 位
-        app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
+        // 应用名称：优先使用 AI 生成，失败则回退到前 12 位
+        try {
+            String generatedName = generateAppNameByPrompt(initPrompt);
+            if (StrUtil.isNotBlank(generatedName)) {
+                app.setAppName(generatedName);
+            } else {
+                app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
+            }
+        } catch (Exception e) {
+            log.warn("AI 生成应用名称失败，回退到默认规则: {}", e.getMessage());
+            app.setAppName(initPrompt.substring(0, Math.min(initPrompt.length(), 12)));
+        }
         // 使用 AI 智能选择代码生成类型（多例模式）
         AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService = aiCodeGenTypeRoutingServiceFactory.createAiCodeGenTypeRoutingService();
         CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(initPrompt);
@@ -118,6 +129,30 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         log.info("应用创建成功，ID: {}, 类型: {}", app.getId(), selectedCodeGenType.getValue());
         return app.getId();
+    }
+
+    @Resource
+    private AiAppNameGeneratorService aiAppNameGeneratorService;
+
+    @Override
+    public String generateAppNameByPrompt(String userPrompt) {
+        if (StrUtil.isBlank(userPrompt)) {
+            return "";
+        }
+        try {
+            String name = aiAppNameGeneratorService.generateAppName(userPrompt);
+            if (name != null) {
+                name = name.trim();
+                // 裁剪到 50 字以内以防越界
+                if (name.length() > 50) {
+                    name = name.substring(0, 50);
+                }
+            }
+            return name;
+        } catch (Exception e) {
+            log.error("生成应用名称异常: {}", e.getMessage());
+            return "";
+        }
     }
 
 
