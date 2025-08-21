@@ -13,6 +13,8 @@
 How AI Code Mother 是一个创新的 AI 驱动的零代码应用生成平台。用户只需通过自然语言描述需求，AI 就能自动生成完整的网站应用，包括前端界面、交互逻辑和部署配置。
 
 ![主页预览](how-ai-code-mother-fronted/public/主页.png)
+### 在线体验：[howmoon.cn](https://howmoon.cn/)
+
 ### ✨ 亮点速览
 
 - 对话即开发：一句话发起生成，边流式输出边预览
@@ -223,6 +225,8 @@ npm run dev
 
 - **前端地址**: http://localhost:5173
 - **API 文档**: http://localhost:8123/api/doc.html
+
+- **线上地址**: [howmoon.cn](https://howmoon.cn/)
 
 ## 🚀 功能特性
 
@@ -517,15 +521,8 @@ cp -r dist/* /var/www/html/
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
 
-## 🙏 致谢
 
-- [Spring Boot](https://spring.io/projects/spring-boot) - 后端框架
-- [Vue.js](https://vuejs.org/) - 前端框架
-- [Ant Design Vue](https://antdv.com/) - UI 组件库
-- [LangChain4j](https://github.com/langchain4j/langchain4j) - AI 集成框架
-- [DeepSeek](https://www.deepseek.com/) - AI 模型服务
-
-## 📞 联系我们
+## 📞 联系我
 
 - **项目地址**: https://github.com/your-username/how-ai-code-mother
 - **问题反馈**: https://github.com/your-username/how-ai-code-mother/issues
